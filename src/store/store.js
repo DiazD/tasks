@@ -1,6 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit'
 import { v4 } from "uuid";
-import { Tasker, createStateTransitions } from "../modules/Tasker";
+import { Tasker, createStateTransitions, createDefaultConfiguration } from "../modules/Tasker";
 
 import exports, { actions } from "./exports";
 import tasks, { selectors, actions as taskActions } from "./tasks";
@@ -76,3 +76,19 @@ const exportHandler = ({
 registerHandler({ name: "export", handler: exportHandler });
 
 run();
+
+
+const config = createDefaultConfiguration();
+config.resultStream = ResultStream;
+config.environment = { name: "Second Task Runner", interval: 2500 };
+
+export const addFasterTask = config.taskStorage.addTask;
+const {
+  registerHandler: rh,
+  run: run2nd,
+} = Tasker(config);
+
+
+rh({ name: "export", handler: exportHandler });
+
+run2nd();

@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 
 // redux
 import { selectors, actions } from "./store/exports";
-import { addTask } from "./store/store";
+import { addTask, addFasterTask } from "./store/store";
 import { useState, useEffect } from 'react';
 
 const random = (seed) => Math.floor(Math.random() * seed) + 1;
@@ -35,6 +35,20 @@ function App() {
     dispatch(actions.addExport({
       id,
       name: `Export ${id}`,
+      type: "normal",
+      progress: 0
+    }));
+  }
+
+  const addFasterExport = () => {
+    const id = addFasterTask({
+      task: "export",
+      meta: { increment: random(20), interval: random(10000) }
+    });
+    dispatch(actions.addExport({
+      id,
+      name: `Export ${id}`,
+      type: "faster",
       progress: 0
     }));
   }
@@ -42,14 +56,16 @@ function App() {
   return (
     <div>
       <button onClick={addExport}>add exports</button>
+      <button onClick={addFasterExport}>add faster exports</button>
       {exports.map(ex => (
         <div className="export d-flex align-items-center justify-content-between" key={ex.id}>
           <span className="text-sm medium">{ex.name}</span>
-	  <span className="text-sm small">{ex.progress}%</span>
-	  <span className="text-sm small">{highscores[ex.id] ? highscores[ex.id] : null}</span>
+          <span className="text-sm small">{ex.type}</span>
+          <span className="text-sm small">{ex.progress}%</span>
+          <span className="text-sm small">{highscores[ex.id] ? highscores[ex.id] : null}</span>
           <span
-	    className="big d-flex align-items-center justify-content-between"
-	  > 
+            className="big d-flex align-items-center justify-content-between"
+          >
             <div className="progress-bar-container">
               <div style={{ width: ex.progress * 5 }} className="progress-bar">
               </div>

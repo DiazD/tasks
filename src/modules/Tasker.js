@@ -1,3 +1,5 @@
+import { v4 } from "uuid";
+
 let runnerEnvironment = { interval: 5000 };
 
 const put = (stream, data) => {
@@ -109,14 +111,13 @@ export const createTaskStorage = () => {
   return {
     readTasks: () => tasks,
     addTask: (task) => {
-      console.group("Storage");
-      tasks.push({ ...task, status: "QUEUED" });
-      console.log("QUEUEING", task);
-      console.groupEnd();
+      const id = v4();
+      tasks.push({ ...task, status: "QUEUED", id });
+      return id;
     },
     updateTask: (task) => {
       const currentTask = tasks.findIndex(({ id }) => id === task.id);
-      if (currentTask) {
+      if (currentTask !== -1) {
         tasks[currentTask] = { ...tasks[currentTask], ...task };
       }
     }
