@@ -1,70 +1,139 @@
-# Getting Started with Create React App
+### Description
+An experiment on implementing a `task runner`. The main idea is to provide an interface for the user to run a task. A task is a function that runs on some provided environment.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Original Problem
+On a project I was working on, the client side provided many ways to import and export data. Initially, based on requirements, we just had a polling mechanism baked into the component. Later on, they wanted the polling to happen even if the user left the page(implying polling should be done at the top level).
 
-## Available Scripts
+We created a barebones task runner which was mainly a loop that read off a queue. It provided a way to signal that a `task was finished` and that's it. The API was fairly simple so we stuck with that instead of adding something like redux-saga.
 
-In the project directory, you can run:
+### Experiment
+Part of the issue of the original task runner were the following:
 
-### `npm start`
+- queue baked in, it was an array of functions
+- tasks were functions
+- tasks had to take care of some plumbing
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+The new solution runs against an interface rather than some concrete data structure. This implies that if you provide a queue the implements the interface then your queue can work as a task storage. Here are the components that the new task runner is made of:
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+1. Task Storage
+2. Result Stream
+3. Error Stream
+4. State Transition
+5. An Environment
 
-### `npm test`
+#### 1. Task Storage
+This is the place that contains all of our tasks, it must implement the following interfaces:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **readTasks**: a function that provides all tasks
+- **updateTask**: a function that takes a task and does something with that task.
+- **addTask(optional)**: mainly if you want to include the queuing of the task in this data structure
 
-### `npm run build`
+Because the task runner does not provide it's own queue, it gives the responsibility to the user on how it queues it's tasks.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+#### 2. Result Stream
+A function that allows you to push results to some external thing. The results stream must be implemented in order to work with your task system. For example:  Imagine you're polling for updates of data import.  Every tick you might want to update some state. The result stream allows you to provide a mechanism to emit those changes.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+#### 3. Error Stream
+A function that allows you to push errors to some external thing. It's similar to the Result Stream.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+#### 4. State Transitions
+A function that provides the `next status` of your task based on it's current status.
 
-### `npm run eject`
+#### 5. Environment
+A map that can provide the interval at which the runner checks for new tasks. It's the minimal way to use it for now but it should probably be extended to be injected into tasks.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Examples
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+#### Using default configuration
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+import { createDefaultConfiguration, Tasker } from "./some-path";
 
-## Learn More
+// use the provided default config
+const config = createDefaultconfiguration();
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+const {
+  run,
+  registerHandler
+} = Tasker(config);
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+// define & register handlers
+const pollUpdates = ({ task, endTask, resultStream, errorStream }) => {
+  ...
+}
 
-### Code Splitting
+const userTask = ({ task, endTask, resultStream, errorStream, environment }) => {
+  // checks the user states, if it's stale data then we fetch for new ones
+  let interval;
+  let isUpdating = false;
+  const { users, interval } = environment;
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+  interval = setInterval(() => {
+    const usersToUpdate = users.getStaleUsers();
+    if (usersToUpdate.length) {
+      isUpdating = true;
+      api.users.bulkFetch(usersToUpdate).then((response) => {
+        // feed it to the results stream
+        resultStream.put(response);
+        isUpdating = false;
+      });
+    }
+  }, interval);
+}
 
-### Analyzing the Bundle Size
+registerHandler({ name: "poll", handler: pollUpdates });
+registerHandler({ 
+  name: "UserAgent", 
+  handler: userTask,
+  environment: { interval: 60 * 1000, users: users}
+});
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+// run the loop
+run();
 
-### Making a Progressive Web App
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+#### Using Redux
+We can use redux to store our tasks and output results to different areas of the store.
 
-### Advanced Configuration
+```
+import { createDefaultConfiguration, Tasker } from "./some-path";
+import store from "...some-path";
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+// use the provided default config
+const ReduxTaskStorage = {
+  readTasks: () => store.getState().tasksList,
+  updateTask: (task) => store.dispatch({ type: "TASK/UPDATE", payload: task}),
+  addTask: (task) => {
+    const id = v4(); // create some uuid
+    store.dispatch({ type: "TASK/CREATE", payload: { ...task, id, status: "QUEUED" }});
+    return id;
+  },
+}
 
-### Deployment
+// for both result and error streams, we can have a middleware that listens for those 2 actions
+// and routes them to the places they need to go.
+const ReduxResultStream = {
+  put: (data) => store.dispatch({ type: "TASK/RESULTS", payload: data })
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+const ReduxErrorStream = {
+  put: (error) => {
+    store.dispatch({ type: "TASK/ERRORS", payload: error });
+    sendErrorToSentry(error, { level: "ERROR" }); // do anything here
+  }
+}
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+const config = {
+  taskStorage: ReduxTaskStorage,
+  resultStream: ReduxResultStream,
+  errorStream: ReduxErrorStream,
+  stateTransitions: TaskStateTransitions,
+  environment: { interval: 10 * 1000 },
+};
+const {
+  run,
+  registerHandler
+} = Tasker(config);
+```

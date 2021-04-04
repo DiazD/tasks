@@ -11,7 +11,8 @@ const store = configureStore({
 
 export default store;
 
-// lets define interfaces
+//////////////////////////////////////////////////////////////////////////
+/// Example 1: Using Redux Store as a Task Storage
 const TaskStorage = {
   readTasks: () => {
     const tasks = selectors.getTasks(store.getState())
@@ -76,10 +77,17 @@ const exportHandler = ({
 registerHandler({ name: "export", handler: exportHandler });
 
 run();
+/// END OF Redux Example
+//////////////////////////////////////////////////////////////////////////
 
-
+//////////////////////////////////////////////////////////////////////////
+/// Example 2: Using an object as a task storage
+///
+/// create a default config but override the results stream
+/// in order to provide updates to the exports store.
+/// also run the tasker process at 2500ms
 const config = createDefaultConfiguration();
-config.resultStream = ResultStream;
+config.resultStream = ResultStream;  // reuse our results stream from the redux example
 config.environment = { name: "Second Task Runner", interval: 2500 };
 
 export const addFasterTask = config.taskStorage.addTask;
@@ -92,3 +100,5 @@ const {
 rh({ name: "export", handler: exportHandler });
 
 run2nd();
+/// END OF EXAMPLE 
+//////////////////////////////////////////////////////////////////////////
