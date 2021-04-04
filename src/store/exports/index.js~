@@ -1,0 +1,14 @@
+import { createSlice } from '@reduxjs/toolkit'
+
+const slice = createSlice({
+  name: "exports",
+  initialState: {}
+  reducers: {
+    addExport: (exports, { payload }) => {
+      exports[payload.id] = payload;
+    }
+  }
+});
+
+export const { addExport } = slice.actions;
+export default slice.reducer;
