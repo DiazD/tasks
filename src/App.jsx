@@ -18,7 +18,6 @@ function App() {
     const exportIdx = exports.findIndex(({ id, progress }) => progress === 100 && !highscores[id]);
     const export_ = exports[exportIdx];
     if (export_ && !highscores[export_.id]) {
-      console.log("why am i here", export_, highscores);
       setHighscores((current) => {
         return { ...current, [export_.id]: currentplace }
       });
@@ -57,8 +56,9 @@ function App() {
     <div>
       <button onClick={addExport}>add exports</button>
       <button onClick={addFasterExport}>add faster exports</button>
-      {exports.map(ex => (
+      {exports.map((ex, idx) => (
         <div className="export d-flex align-items-center justify-content-between" key={ex.id}>
+          <span className="text-sm small">{idx + 1}</span>
           <span className="text-sm medium">{ex.name}</span>
           <span className="text-sm small">{ex.type}</span>
           <span className="text-sm small">{ex.progress}%</span>
@@ -73,6 +73,14 @@ function App() {
           </span>
         </div>
       ))}
+      <div>
+        <div>
+          Normal: {exports.filter(({ type }) => type === "normal").map(({ id }) => highscores[id] || 0).reduce((acc, num) => acc + num, 0)} ({exports.filter(({ type, progress }) => type === "normal" && progress === 100).length}/{exports.filter(({ type, progress }) => type === "normal").length})
+        </div>
+        <div>
+          Faster: {exports.filter(({ type }) => type === "faster").map(({ id }) => highscores[id] || 0).reduce((acc, num) => acc + num, 0)} ({exports.filter(({ type, progress }) => type === "faster" && progress === 100).length}/{exports.filter(({ type, progress }) => type === "faster").length})
+        </div>
+      </div>
     </div>
   );
 }
